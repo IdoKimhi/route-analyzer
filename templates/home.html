@@ -3,53 +3,62 @@
 
 <h1>Home</h1>
 
-<section class="grid2">
-  <div class="card">
-    <h2>Configured route</h2>
-    {% if cfg %}
-      <div class="mono">
-        Start: {{ cfg.start_lat }}, {{ cfg.start_lng }}<br/>
-        End: {{ cfg.end_lat }}, {{ cfg.end_lng }}<br/>
-        Waze region: {{ cfg.waze_region }}
-      </div>
-      <div id="map" class="map"></div>
-    {% else %}
-      <p>No route configured yet. Go to <a href="{{ url_for('setup') }}">/setup</a>.</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h2>Provider status</h2>
-    <div class="statusRow">
-      <div>
-        <div class="label">Waze</div>
-        {% if last_waze %}
-          <div class="mono">{{ last_waze.status }} at {{ last_waze.ts_utc }}</div>
-          {% if last_waze.duration_sec %}<div>ETA: {{ (last_waze.duration_sec // 60) }} min</div>{% endif %}
-          {% if last_waze.error %}<div class="err">{{ last_waze.error }}</div>{% endif %}
+<section class="card">
+  <div class="controls">
+    <div>
+      <label>Route</label>
+      <select id="homeRoute">
+        {% if routes %}
+          {% for r in routes %}
+            <option value="{{ r.id }}" {% if default_route and r.id == default_route.id %}selected{% endif %}>
+              {{ r.name }} ({{ "on" if r.enabled else "off" }})
+            </option>
+          {% endfor %}
         {% else %}
-          <div class="mono">No data yet</div>
+          <option value="">No routes</option>
         {% endif %}
-      </div>
-
-      <div>
-        <div class="label">OSRM</div>
-        {% if last_osrm %}
-          <div class="mono">{{ last_osrm.status }} at {{ last_osrm.ts_utc }}</div>
-          {% if last_osrm.duration_sec %}<div>ETA: {{ (last_osrm.duration_sec // 60) }} min</div>{% endif %}
-          {% if last_osrm.error %}<div class="err">{{ last_osrm.error }}</div>{% endif %}
-        {% else %}
-          <div class="mono">No data yet</div>
-        {% endif %}
-      </div>
+      </select>
     </div>
   </div>
+
+  {% if routes %}
+    <div id="map" class="map"></div>
+  {% else %}
+    <div class="hint">No routes configured. Go to <a href="{{ url_for('setup') }}">/setup</a>.</div>
+  {% endif %}
 </section>
 
-<section class="card">
-  <h2>Last 24 hours</h2>
-  <p class="hint">Charts pull from your DB. OSRM is a baseline (no live traffic), Waze is traffic-aware when it works.</p>
-  <canvas id="homeChart" height="110"></canvas>
+<section class="grid2">
+  <div class="card">
+    <h2>Provider status (selected route)</h2>
+    <div id="providerStatus" class="hint">Select a route</div>
+  </div>
+
+  <div class="card">
+    <h2>Last 24 hours (selected route)</h2>
+    <canvas id="homeChart" height="120"></canvas>
+  </div>
 </section>
+
+<script>
+  window.__lastByRoute = {
+    {% for rid, d in last_by_route.items() %}
+      "{{ rid }}": {
+        waze: {{ "null" if not d.waze else ("{ts: '%s', status: '%s', eta: %s, err: %s}" % (
+          d.waze.ts_utc.isoformat(),
+          d.waze.status,
+          (d.waze.duration_sec // 60) if d.waze.duration_sec else "null",
+          ("'%s'" % d.waze.error.replace("'", "\\'")) if d.waze.error else "null"
+        )) | safe }},
+        osrm: {{ "null" if not d.osrm else ("{ts: '%s', status: '%s', eta: %s, err: %s}" % (
+          d.osrm.ts_utc.isoformat(),
+          d.osrm.status,
+          (d.osrm.duration_sec // 60) if d.osrm.duration_sec else "null",
+          ("'%s'" % d.osrm.error.replace("'", "\\'")) if d.osrm.error else "null"
+        )) | safe }}
+      },
+    {% endfor %}
+  };
+</script>
 
 {% endblock %}

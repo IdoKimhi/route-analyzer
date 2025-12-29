@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from config import Settings
 from db import make_engine, make_session_factory, Base
-from models import RouteConfig, Sample
+from models import Route, Sample
 from services.waze_service import fetch_waze_eta
 from services.osrm_service import fetch_osrm_eta
 
@@ -35,27 +35,43 @@ def main():
 
     while True:
         with Session() as db:
-            cfg = db.query(RouteConfig).order_by(RouteConfig.id.desc()).first()
-            if not cfg:
-                print("[collector] No route configured yet. Sleeping 60s.")
+            routes = db.query(Route).filter(Route.enabled.is_(True)).order_by(Route.id.asc()).all()
+
+            if not routes:
+                print("[collector] No enabled routes. Sleeping 60s.")
                 time.sleep(60)
                 continue
 
-            # Waze
-            try:
-                w = fetch_waze_eta(cfg.start_lat, cfg.start_lng, cfg.end_lat, cfg.end_lng, cfg.waze_region)
-                db.add(Sample(provider="waze", status="ok", duration_sec=w["duration_sec"], distance_m=w["distance_m"], raw_json=w["raw"]))
-            except Exception as e:
-                db.add(Sample(provider="waze", status="error", error=str(e)[:512]))
-                print(f"[collector] Waze error: {e}")
+            for r in routes:
+                # Waze
+                try:
+                    w = fetch_waze_eta(r.start_lat, r.start_lng, r.end_lat, r.end_lng, r.waze_region)
+                    db.add(Sample(
+                        route_id=r.id,
+                        provider="waze",
+                        status="ok",
+                        duration_sec=w["duration_sec"],
+                        distance_m=w["distance_m"],
+                        raw_json=w["raw"],
+                    ))
+                except Exception as e:
+                    db.add(Sample(route_id=r.id, provider="waze", status="error", error=str(e)[:512]))
+                    print(f"[collector] Waze error route_id={r.id}: {e}")
 
-            # OSRM
-            try:
-                o = fetch_osrm_eta(s.OSRM_URL, cfg.start_lat, cfg.start_lng, cfg.end_lat, cfg.end_lng)
-                db.add(Sample(provider="osrm", status="ok", duration_sec=o["duration_sec"], distance_m=o["distance_m"], raw_json=o["raw"]))
-            except Exception as e:
-                db.add(Sample(provider="osrm", status="error", error=str(e)[:512]))
-                print(f"[collector] OSRM error: {e}")
+                # OSRM
+                try:
+                    o = fetch_osrm_eta(s.OSRM_URL, r.start_lat, r.start_lng, r.end_lat, r.end_lng)
+                    db.add(Sample(
+                        route_id=r.id,
+                        provider="osrm",
+                        status="ok",
+                        duration_sec=o["duration_sec"],
+                        distance_m=o["distance_m"],
+                        raw_json=o["raw"],
+                    ))
+                except Exception as e:
+                    db.add(Sample(route_id=r.id, provider="osrm", status="error", error=str(e)[:512]))
+                    print(f"[collector] OSRM error route_id={r.id}: {e}")
 
             db.commit()
 
