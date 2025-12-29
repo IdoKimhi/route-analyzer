@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Setup</h1>
+
+<div class="card">
+  <form method="post" class="form">
+    <div class="row">
+      <div>
+        <label>Start latitude</label>
+        <input name="start_lat" required value="{{ cfg.start_lat if cfg else '' }}" />
+      </div>
+      <div>
+        <label>Start longitude</label>
+        <input name="start_lng" required value="{{ cfg.start_lng if cfg else '' }}" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>End latitude</label>
+        <input name="end_lat" required value="{{ cfg.end_lat if cfg else '' }}" />
+      </div>
+      <div>
+        <label>End longitude</label>
+        <input name="end_lng" required value="{{ cfg.end_lng if cfg else '' }}" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Waze region</label>
+        <input name="waze_region" placeholder="IL" value="{{ cfg.waze_region if cfg else 'IL' }}" />
+        <div class="hint">Typical: IL, EU, US</div>
+      </div>
+    </div>
+
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+{% endblock %}

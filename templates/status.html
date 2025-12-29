@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Status</h1>
+
+<section class="card">
+  <div class="controls">
+    <div>
+      <label>Hours</label>
+      <select id="hours">
+        <option value="24">24</option>
+        <option value="168" selected>168 (7 days)</option>
+        <option value="720">720 (30 days)</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Provider</label>
+      <select id="provider">
+        <option value="">All</option>
+        <option value="waze">Waze</option>
+        <option value="osrm">OSRM</option>
+      </select>
+    </div>
+
+    <div class="grow"></div>
+
+    <div>
+      <a id="downloadLink" class="btn" href="/download?hours=168">Download CSV</a>
+    </div>
+  </div>
+
+  <canvas id="etaChart" height="120"></canvas>
+</section>
+
+<section class="card">
+  <h2>Recent samples</h2>
+  <div class="tableWrap">
+    <table id="samplesTable">
+      <thead>
+        <tr>
+          <th>Time (UTC)</th>
+          <th>Provider</th>
+          <th>Status</th>
+          <th>ETA (min)</th>
+          <th>Distance (km)</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}

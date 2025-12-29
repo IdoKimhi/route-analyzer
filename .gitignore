@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# OSRM generated files and downloaded extract
+osrm-data/*.osrm*
+osrm-data/*.pbf
+osrm-data/*.log

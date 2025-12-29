@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Home</h1>
+
+<section class="grid2">
+  <div class="card">
+    <h2>Configured route</h2>
+    {% if cfg %}
+      <div class="mono">
+        Start: {{ cfg.start_lat }}, {{ cfg.start_lng }}<br/>
+        End: {{ cfg.end_lat }}, {{ cfg.end_lng }}<br/>
+        Waze region: {{ cfg.waze_region }}
+      </div>
+      <div id="map" class="map"></div>
+    {% else %}
+      <p>No route configured yet. Go to <a href="{{ url_for('setup') }}">/setup</a>.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Provider status</h2>
+    <div class="statusRow">
+      <div>
+        <div class="label">Waze</div>
+        {% if last_waze %}
+          <div class="mono">{{ last_waze.status }} at {{ last_waze.ts_utc }}</div>
+          {% if last_waze.duration_sec %}<div>ETA: {{ (last_waze.duration_sec // 60) }} min</div>{% endif %}
+          {% if last_waze.error %}<div class="err">{{ last_waze.error }}</div>{% endif %}
+        {% else %}
+          <div class="mono">No data yet</div>
+        {% endif %}
+      </div>
+
+      <div>
+        <div class="label">OSRM</div>
+        {% if last_osrm %}
+          <div class="mono">{{ last_osrm.status }} at {{ last_osrm.ts_utc }}</div>
+          {% if last_osrm.duration_sec %}<div>ETA: {{ (last_osrm.duration_sec // 60) }} min</div>{% endif %}
+          {% if last_osrm.error %}<div class="err">{{ last_osrm.error }}</div>{% endif %}
+        {% else %}
+          <div class="mono">No data yet</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Last 24 hours</h2>
+  <p class="hint">Charts pull from your DB. OSRM is a baseline (no live traffic), Waze is traffic-aware when it works.</p>
+  <canvas id="homeChart" height="110"></canvas>
+</section>
+
+{% endblock %}

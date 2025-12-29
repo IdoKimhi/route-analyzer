@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: route_tracker
+      POSTGRES_USER: route_tracker
+      POSTGRES_PASSWORD: route_tracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # One time preprocessing for OSRM. It will skip if the output already exists.
+  osrm-prep:
+    image: ghcr.io/project-osrm/osrm-backend
+    volumes:
+      - ./osrm-data:/data
+    command: >
+      sh -c '
+      set -e;
+      test -f /data/israel-and-palestine-latest.osm.pbf || (echo "Missing /data/israel-and-palestine-latest.osm.pbf" && exit 1);
+      if [ -f /data/israel-and-palestine-latest.osrm.datasource_names ]; then
+        echo "OSRM already prepared, skipping";
+      else
+        osrm-extract -p /opt/car.lua /data/israel-and-palestine-latest.osm.pbf;
+        osrm-partition /data/israel-and-palestine-latest.osrm;
+        osrm-customize /data/israel-and-palestine-latest.osrm;
+      fi
+      '
+    restart: "no"
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend
+    volumes:
+      - ./osrm-data:/data
+    command: ["osrm-routed", "--algorithm", "mld", "/data/israel-and-palestine-latest.osrm"]
+    ports:
+      - "5000:5000"
+    depends_on:
+      osrm-prep:
+        condition: service_completed_successfully
+
+  web:
+    build: .
+    env_file:
+      - .env
+    environment:
+      OSRM_URL: http://osrm:5000
+    depends_on:
+      - db
+      - osrm
+    ports:
+      - "8000:8000"
+
+  collector:
+    build: .
+    command: ["python", "collector.py"]
+    env_file:
+      - .env
+    environment:
+      OSRM_URL: http://osrm:5000
+    depends_on:
+      - db
+      - osrm
+
+volumes:
+  pgdata:
