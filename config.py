@@ -19,4 +19,3 @@ class Settings:
 
     # Providers
     WAZE_REGION: str = os.getenv("WAZE_REGION", "IL")
-    OSRM_URL: str = os.getenv("OSRM_URL", "http://osrm:5000").rstrip("/")

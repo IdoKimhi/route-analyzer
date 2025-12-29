@@ -7,7 +7,6 @@ from config import Settings
 from db import make_engine, make_session_factory, Base
 from models import Route, Sample
 from services.waze_service import fetch_waze_eta
-from services.osrm_service import fetch_osrm_eta
 
 load_dotenv()
 
@@ -57,21 +56,6 @@ def main():
                 except Exception as e:
                     db.add(Sample(route_id=r.id, provider="waze", status="error", error=str(e)[:512]))
                     print(f"[collector] Waze error route_id={r.id}: {e}")
-
-                # OSRM
-                try:
-                    o = fetch_osrm_eta(s.OSRM_URL, r.start_lat, r.start_lng, r.end_lat, r.end_lng)
-                    db.add(Sample(
-                        route_id=r.id,
-                        provider="osrm",
-                        status="ok",
-                        duration_sec=o["duration_sec"],
-                        distance_m=o["distance_m"],
-                        raw_json=o["raw"],
-                    ))
-                except Exception as e:
-                    db.add(Sample(route_id=r.id, provider="osrm", status="error", error=str(e)[:512]))
-                    print(f"[collector] OSRM error route_id={r.id}: {e}")
 
             db.commit()
 
