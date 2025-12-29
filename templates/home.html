@@ -50,12 +50,6 @@
           (d.waze.duration_sec // 60) if d.waze.duration_sec else "null",
           ("'%s'" % d.waze.error.replace("'", "\\'")) if d.waze.error else "null"
         )) | safe }},
-        osrm: {{ "null" if not d.osrm else ("{ts: '%s', status: '%s', eta: %s, err: %s}" % (
-          d.osrm.ts_utc.isoformat(),
-          d.osrm.status,
-          (d.osrm.duration_sec // 60) if d.osrm.duration_sec else "null",
-          ("'%s'" % d.osrm.error.replace("'", "\\'")) if d.osrm.error else "null"
-        )) | safe }}
       },
     {% endfor %}
   };
