@@ -36,7 +36,7 @@ class Sample(Base):
     route_id: Mapped[int] = mapped_column(ForeignKey("routes.id", ondelete="CASCADE"), nullable=False, index=True)
     route: Mapped[Route] = relationship("Route", back_populates="samples")
 
-    provider: Mapped[str] = mapped_column(String(16), nullable=False)  # "waze" | "osrm"
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)  # "waze"
     status: Mapped[str] = mapped_column(String(16), nullable=False)    # "ok" | "error"
 
     duration_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)

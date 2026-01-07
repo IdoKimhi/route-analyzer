@@ -4,10 +4,25 @@ async function fetchJson(url) {
   return await r.json();
 }
 
-function setDownloadLink(hours, provider, routeId) {
+const israelDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+
+function formatIsraelTime(iso) {
+  const parts = israelDateFormatter.formatToParts(new Date(iso));
+  const lookup = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day} ${lookup.hour}:${lookup.minute}`;
+}
+
+function setDownloadLink(hours, routeId) {
   const p = new URLSearchParams();
   p.set("hours", String(hours));
-  if (provider) p.set("provider", provider);
   if (routeId) p.set("route_id", routeId);
   const a = document.getElementById("downloadLink");
   if (a) a.href = `/download?${p.toString()}`;
@@ -22,9 +37,8 @@ function fillTable(items, routesById) {
     const routeName = routesById[it.route_id] ? routesById[it.route_id].name : String(it.route_id);
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="mono">${it.ts}</td>
+      <td class="mono">${formatIsraelTime(it.ts)}</td>
       <td>${routeName}</td>
-      <td>${it.provider}</td>
       <td>${it.status}</td>
       <td>${it.duration_min ?? ""}</td>
       <td>${it.distance_km ?? ""}</td>
@@ -47,7 +61,7 @@ function buildLineChart(ctx, labels, seriesByProvider) {
       interaction: { mode: "index", intersect: false },
       scales: {
         y: { title: { display: true, text: "ETA (minutes)" } },
-        x: { title: { display: true, text: "Time (UTC)" } }
+        x: { title: { display: true, text: "Time (Israel)" } }
       }
     }
   });
@@ -55,10 +69,9 @@ function buildLineChart(ctx, labels, seriesByProvider) {
 
 async function initStatusPage() {
   const hoursEl = document.getElementById("hours");
-  const providerEl = document.getElementById("provider");
   const routeEl = document.getElementById("route");
   const chartEl = document.getElementById("etaChart");
-  if (!hoursEl || !providerEl || !routeEl || !chartEl) return;
+  if (!hoursEl || !routeEl || !chartEl) return;
 
   const routes = await fetchJson("/api/routes");
   const routesById = {};
@@ -75,19 +88,17 @@ async function initStatusPage() {
 
   async function reload() {
     const hours = parseInt(hoursEl.value, 10);
-    const provider = providerEl.value || "";
     const routeId = routeEl.value || "";
 
-    setDownloadLink(hours, provider, routeId);
+    setDownloadLink(hours, routeId);
 
     const params = new URLSearchParams();
     params.set("hours", String(hours));
-    if (provider) params.set("provider", provider);
     if (routeId) params.set("route_id", routeId);
 
     const items = await fetchJson(`/api/samples?${params.toString()}`);
 
-    const labels = items.map(x => x.ts);
+    const labels = items.map(x => formatIsraelTime(x.ts));
     const byProvider = {};
     for (const it of items) {
       if (!byProvider[it.provider]) byProvider[it.provider] = [];
@@ -101,7 +112,6 @@ async function initStatusPage() {
   }
 
   hoursEl.addEventListener("change", reload);
-  providerEl.addEventListener("change", reload);
   routeEl.addEventListener("change", reload);
 
   await reload();
@@ -118,21 +128,14 @@ function setProviderStatus(routeId) {
   }
 
   const w = d.waze;
-  const o = d.osrm;
 
   el.innerHTML = `
     <div class="statusRow">
       <div>
         <div class="label">Waze</div>
-        <div class="mono">${w ? `${w.status} at ${w.ts}` : "No data"}</div>
+        <div class="mono">${w ? `${w.status} at ${formatIsraelTime(w.ts)}` : "No data"}</div>
         ${w && w.eta !== null ? `<div>ETA: ${w.eta} min</div>` : ""}
         ${w && w.err ? `<div class="err">${w.err}</div>` : ""}
-      </div>
-      <div>
-        <div class="label">OSRM</div>
-        <div class="mono">${o ? `${o.status} at ${o.ts}` : "No data"}</div>
-        ${o && o.eta !== null ? `<div>ETA: ${o.eta} min</div>` : ""}
-        ${o && o.err ? `<div class="err">${o.err}</div>` : ""}
       </div>
     </div>
   `;
@@ -150,9 +153,10 @@ async function initHomePage() {
 
   let map = null;
   let markers = null;
+  let routeLine = null;
   let chart = null;
 
-  function renderMap(routeId) {
+  async function renderMap(routeId) {
     if (!mapEl || !window.L) return;
     const r = routesById[routeId];
     if (!r) return;
@@ -173,12 +177,26 @@ async function initHomePage() {
       markers.forEach(x => map.removeLayer(x));
       markers = null;
     }
+    if (routeLine) {
+      map.removeLayer(routeLine);
+      routeLine = null;
+    }
 
     const a = L.marker(start).addTo(map).bindPopup("Start");
     const b = L.marker(end).addTo(map).bindPopup("End");
-    const line = L.polyline([start, end]).addTo(map);
+    markers = [a, b];
 
-    markers = [a, b, line];
+    let points = [start, end];
+    try {
+      const data = await fetchJson(`/api/routes/${routeId}/path`);
+      if (Array.isArray(data.points) && data.points.length) {
+        points = data.points;
+      }
+    } catch (err) {
+      console.warn("Route path fetch failed", err);
+    }
+
+    routeLine = L.polyline(points, { color: "#4aa3ff", weight: 4 }).addTo(map);
 
     const group = L.featureGroup([a, b]);
     map.fitBounds(group.getBounds().pad(0.2));
@@ -193,7 +211,7 @@ async function initHomePage() {
 
     const items = await fetchJson(`/api/samples?${params.toString()}`);
 
-    const labels = items.map(x => x.ts);
+    const labels = items.map(x => formatIsraelTime(x.ts));
     const byProvider = {};
     for (const it of items) {
       if (!byProvider[it.provider]) byProvider[it.provider] = [];
@@ -209,7 +227,7 @@ async function initHomePage() {
     if (!routeId) return;
 
     setProviderStatus(routeId);
-    renderMap(routeId);
+    await renderMap(routeId);
     await renderChart(routeId);
   }
 

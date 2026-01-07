@@ -1,11 +1,9 @@
-Route Tracker (Waze + OSRM)
+Route Tracker (Waze)
 
 A small Flask app that runs all day, collects ETA and distance between two coordinates every 30 minutes, stores results in Postgres, and shows dashboards with charts and a map.
-Providers
+Provider
 
     Waze: Traffic-aware routing via WazeRouteCalculator.
-
-    OSRM: Baseline routing (typically no live traffic) via a self-hosted OSRM HTTP server.
 
 Core Pages
 
@@ -25,13 +23,13 @@ What You Get
 
     Visualization: Chart.js graphs and Leaflet map (OpenStreetMap tiles).
 
-    Export: CSV download with optional provider filtering.
+    Export: CSV download.
 
 Requirements
 
     Docker Engine + Docker Compose plugin.
 
-    Internet access (to download Python packages and OSM extracts).
+    Internet access (to download Python packages).
 
 Project Layout
 Plaintext
@@ -47,7 +45,6 @@ route-tracker/
 ├── docker-compose.yml
 ├── .env.example
 ├── services/
-│   ├── osrm_service.py
 │   └── waze_service.py
 ├── templates/
 │   ├── base.html
@@ -57,10 +54,6 @@ route-tracker/
 ├── static/
 │   ├── app.js
 │   └── styles.css
-├── osrm-data/
-│   └── README.md
-└── scripts/
-    └── download_osm_israel.sh
 
 Quick Start
 1. Create the Environment File
@@ -69,23 +62,7 @@ Bash
 cp .env.example .env
 
 Edit .env if you want to customize settings.
-2. Download OSM Extract for OSRM
-
-This example uses the Israel and Palestine extract from Geofabrik.
-Bash
-
-bash scripts/download_osm_israel.sh
-
-This downloads osrm-data/israel-and-palestine-latest.osm.pbf.
-3. Preprocess OSRM Data (One-time)
-
-OSRM requires preprocessing to create .osrm.* files.
-Bash
-
-docker compose up osrm-prep
-
-If successful, your osrm-data/ folder will contain several generated .osrm files.
-4. Start the Full Stack
+2. Start the Full Stack
 Bash
 
 docker compose up --build
@@ -94,13 +71,11 @@ Services started:
 
     db: Postgres database.
 
-    osrm: Routing server.
-
     web: Flask dashboard.
 
     collector: Poller running every 30 minutes.
 
-5. Configure Your Route
+3. Configure Your Route
 
     Open http://localhost:8000/setup
 
@@ -116,7 +91,6 @@ DATABASE_URL	e.g., postgresql+psycopg://user:pass@db:5432/db
 FLASK_SECRET_KEY	Change this for production.
 POLL_MINUTES	Default: 30. Collector aligns to the next 30-min boundary (UTC).
 WAZE_REGION	Default: IL.
-OSRM_URL	Default: http://osrm:5000.
 Endpoints
 UI
 
@@ -130,9 +104,9 @@ API
 
     GET /api/config: Returns current route config.
 
-    GET /api/samples?hours=168&provider=waze: Returns samples within N hours.
+    GET /api/samples?hours=168: Returns samples within N hours.
 
-    GET /download?hours=168&provider=osrm: Downloads CSV export.
+    GET /download?hours=168: Downloads CSV export.
 
 Data Model
 
@@ -148,21 +122,15 @@ Bash
 
 docker compose logs -f web
 docker compose logs -f collector
-docker compose logs -f osrm
 
 Reset Everything
 
-To delete the database and all processed OSRM files:
+To delete the database:
 Bash
 
 docker compose down -v
-rm -f osrm-data/*.osrm*
 
 Troubleshooting
-
-    OSRM prep fails: Ensure the .osm.pbf file exists in osrm-data/.
-
-    Out of Memory: OSRM preprocessing is RAM-intensive. Use a smaller map extract if needed.
 
     Blank Map: Ensure your browser can reach OpenStreetMap tile servers and check for CSP blocks.
 
