@@ -10,14 +10,24 @@ services:
     ports:
       - "5432:5432"
 
+  db-init:
+    build: .
+    command: ["python", "-c", "from app import Base, engine; Base.metadata.create_all(engine)"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+
   web:
     build: .
     env_file:
       - .env
     depends_on:
       - db
+      - db-init
     ports:
       - "8000:8000"
+    command: ["gunicorn", "--preload", "-w", "2", "-b", "0.0.0.0:8000", "app:app"]
 
   collector:
     build: .
